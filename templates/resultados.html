@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados: {{ query }} - Comparador</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container container-wide">
+        <header>
+            <h1>🛒 Comparador de Precios</h1>
+            {% if ultima %}
+                <p class="ultima">📅 Actualizado: {{ ultima[:16].replace('T', ' ') }}</p>
+            {% endif %}
+        </header>
+
+        <form action="/buscar" method="get" class="buscador">
+            <input type="text" name="q" value="{{ query }}" required autocomplete="off">
+            <button type="submit">🔍</button>
+        </form>
+
+        <h2 class="titulo-resultados">
+            Resultados: <span class="query">"{{ query }}"</span>
+            <span class="cat-badge">{{ grupos|length }}</span>
+        </h2>
+
+        {% if grupos %}
+            <div class="grid-productos">
+                {% for grupo in grupos %}
+                <div class="card-producto">
+                    <div class="card-header">
+                        <div class="card-cat">{{ grupo.categoria }}</div>
+                        <h3 class="card-nombre" title="{{ grupo.nombre }}">
+                            {{ grupo.nombre }}
+                        </h3>
+                        {% if grupo.ahorro > 0 %}
+                        <div class="card-ahorro">
+                            💰 ${{ "{:,.0f}".format(grupo.ahorro) }}
+                            <span class="pct">({{ "{:.0f}".format(grupo.ahorro_pct) }}%)</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-precios">
+                        {% for item in grupo.precios %}
+                        <div class="precio-row {% if loop.first %}precio-ganador{% endif %}">
+                            <div class="precio-super" title="{{ item.supermercado }}">
+                                {% if loop.first %}🏆 {% endif %}
+                                {{ item.supermercado }}
+                            </div>
+                            <div class="precio-valor">
+                                ${{ "{:,.0f}".format(item.precio) }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="card-footer">
+                        <span class="card-total">
+                            {{ grupo.total_supers }} súper{{ 's' if grupo.total_supers != 1 else '' }}
+                        </span>
+                        {% if grupo.precios[0].url %}
+                        <a href="{{ grupo.precios[0].url }}" target="_blank" class="btn-mini">
+                            Ver →
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="vacio">
+                <p>😕 No se encontraron productos para "{{ query }}"</p>
+                <p class="hint">Intenta con otro término.</p>
+            </div>
+        {% endif %}
+
+        <a href="/" class="volver">← Ver comparación completa</a>
+    </div>
+</body>
+</html>

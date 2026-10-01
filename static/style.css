@@ -1,0 +1,487 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px 12px;
+    color: #333;
+}
+
+.container {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+}
+
+.container-wide {
+    max-width: 1600px;   /* ← más ancho para meter más columnas */
+}
+
+header {
+    text-align: center;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #f0f0f5;
+}
+
+h1 {
+    color: #2c3e50;
+    font-size: 23px;
+    margin-bottom: 5px;
+}
+
+.sub {
+    color: #7f8c8d;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.ultima {
+    display: inline-block;
+    font-size: 11px;
+    color: #666;
+    background: #f8f9fa;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-top: 5px;
+}
+
+/* ---------- Buscador ---------- */
+.buscador {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.buscador input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid #e1e4e8;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.buscador input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.buscador button {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.buscador button:hover {
+    transform: translateY(-2px);
+}
+
+/* ---------- Stats ---------- */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.stat {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.stat-num {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 1px;
+}
+
+.stat-lbl {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+
+/* ---------- Filtros categorías ---------- */
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f5;
+}
+
+.chip {
+    display: inline-block;
+    padding: 5px 10px;
+    background: #f0f0f5;
+    border-radius: 14px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.chip:hover {
+    background: #e0e0ea;
+}
+
+.chip-activo {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.35);
+}
+
+/* ---------- Títulos ---------- */
+.titulo-comparacion,
+.titulo-resultados {
+    color: #2c3e50;
+    font-size: 17px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.query {
+    color: #667eea;
+}
+
+.cat-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    background: #eef2ff;
+    color: #667eea;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ============================================================
+   GRID DENSO DE TARJETAS
+   - Desktop grande: 5-6 columnas
+   - Desktop normal: 4 columnas
+   - Tablet: 3 columnas
+   - Móvil: 2 columnas
+   - Móvil pequeño: 1 columna
+   ============================================================ */
+.grid-productos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.card-producto {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 11px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.card-producto:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    border-color: #667eea;
+}
+
+.card-header {
+    margin-bottom: 7px;
+}
+
+.card-cat {
+    display: inline-block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #667eea;
+    background: #eef2ff;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.card-nombre {
+    color: #2c3e50;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    margin-bottom: 6px;
+    /* Limitar a 2 líneas */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 33px;
+}
+
+.card-ahorro {
+    background: #d4edda;
+    color: #155724;
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.card-ahorro .pct {
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+/* ---------- Precios (compactos) ---------- */
+.card-precios {
+    flex: 1;
+    margin-bottom: 7px;
+}
+
+.precio-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    margin-bottom: 2px;
+}
+
+.precio-row:not(.precio-ganador) {
+    background: #fafbfc;
+}
+
+.precio-ganador {
+    background: #e8f5e9;
+    border-left: 3px solid #4caf50;
+    font-weight: 700;
+}
+
+.precio-super {
+    color: #555;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+}
+
+.precio-ganador .precio-super {
+    color: #1b5e20;
+}
+
+.precio-valor {
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 12.5px;
+}
+
+.precio-ganador .precio-valor {
+    color: #1b5e20;
+}
+
+/* ---------- Footer tarjeta ---------- */
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 6px;
+    border-top: 1px solid #f0f0f5;
+    font-size: 10.5px;
+}
+
+.card-total {
+    color: #95a5a6;
+    font-weight: 500;
+}
+
+.btn-mini {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 5px;
+    transition: background 0.15s;
+}
+
+.btn-mini:hover {
+    background: #667eea;
+    color: #fff;
+}
+
+/* ---------- Vacío ---------- */
+.vacio {
+    text-align: center;
+    padding: 50px 20px;
+    color: #7f8c8d;
+}
+
+.vacio .hint {
+    font-size: 13px;
+    margin-top: 10px;
+    color: #bdc3c7;
+}
+
+.vacio code {
+    background: #f0f0f5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #667eea;
+}
+
+.volver {
+    display: inline-block;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    margin-top: 18px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.volver:hover {
+    background: #f0f0f5;
+}
+
+footer {
+    text-align: center;
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid #f0f0f5;
+    font-size: 10.5px;
+    color: #95a5a6;
+}
+
+/* ============================================================
+   BREAKPOINTS AGRESIVOS para maximizar tarjetas por fila
+   ============================================================ */
+
+/* Pantallas muy grandes (>1600px): 7 columnas */
+@media (min-width: 1600px) {
+    .grid-productos {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+/* Desktop normal (1200-1600px): 5 columnas */
+@media (max-width: 1599px) and (min-width: 1200px) {
+    .grid-productos {
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    }
+}
+
+/* Desktop chico / tablet grande (900-1199px): 4 columnas */
+@media (max-width: 1199px) and (min-width: 900px) {
+    .grid-productos {
+        grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+    }
+}
+
+/* Tablet (600-899px): 3 columnas */
+@media (max-width: 899px) and (min-width: 600px) {
+    .grid-productos {
+        grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+        gap: 8px;
+    }
+
+    .container-wide {
+        padding: 18px 14px;
+    }
+
+    .precio-super {
+        max-width: 85px;
+        font-size: 11px;
+    }
+
+    .precio-valor {
+        font-size: 12px;
+    }
+}
+
+/* Móvil grande (400-599px): 2 columnas */
+@media (max-width: 599px) and (min-width: 400px) {
+    body {
+        padding: 12px 8px;
+    }
+
+    .container {
+        padding: 14px 12px;
+        border-radius: 12px;
+    }
+
+    .grid-productos {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 7px;
+    }
+
+    .card-producto {
+        padding: 8px;
+    }
+
+    .card-nombre {
+        font-size: 11.5px;
+        min-height: 29px;
+    }
+
+    .precio-super {
+        max-width: 70px;
+        font-size: 10.5px;
+    }
+
+    .precio-valor {
+        font-size: 11.5px;
+    }
+
+    .precio-row {
+        padding: 3px 5px;
+        font-size: 10.5px;
+    }
+
+    h1 { font-size: 18px; }
+    .stat-num { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    .stat { padding: 8px; }
+}
+
+/* Móvil muy chico (<400px): 1 columna pero compacta */
+@media (max-width: 399px) {
+    .grid-productos {
+        grid-template-columns: 1fr;
+    }
+
+    .container {
+        padding: 12px 10px;
+    }
+}
