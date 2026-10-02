@@ -1,10 +1,13 @@
 """
 app.py
-Servidor web Flask con todas las features.
+Servidor web Flask con todas las features + botón Actualizar.
 """
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
 from datetime import datetime
 import os
+import threading
+import queue
+import json
 
 from database import (
     init_db, buscar_productos, get_sugerencias,
@@ -25,7 +28,7 @@ app = Flask(__name__)
 
 
 # ============================================================
-# INICIALIZAR DB AL IMPORTAR (para gunicorn en producción)
+# INICIALIZAR DB AL IMPORTAR
 # ============================================================
 try:
     init_db()
@@ -34,6 +37,79 @@ except Exception as e:
     print(f"⚠️ Error inicializando DB: {e}")
 
 
+# ============================================================
+# ESTADO GLOBAL DEL SCRAPER
+# (para saber si está corriendo y mostrar progreso)
+# ============================================================
+class EstadoScraper:
+    def __init__(self):
+        self.corriendo = False
+        self.progreso = []
+        self.suscriptores = []
+        self.lock = threading.Lock()
+        self.thread = None
+
+    def emitir(self, mensaje):
+        """Envía un mensaje a todos los clientes SSE."""
+        with self.lock:
+            self.progreso.append(mensaje)
+            # Solo guardar los últimos 200
+            if len(self.progreso) > 200:
+                self.progreso = self.progreso[-200:]
+            # Notificar a suscriptores
+            for q in self.suscriptores:
+                try:
+                    q.put_nowait(mensaje)
+                except Exception:
+                    pass
+
+    def suscribir(self):
+        q = queue.Queue()
+        with self.lock:
+            self.suscriptores.append(q)
+        return q
+
+    def desuscribir(self, q):
+        with self.lock:
+            if q in self.suscriptores:
+                self.suscriptores.remove(q)
+
+
+estado = EstadoScraper()
+
+
+def ejecutar_scraper_background():
+    """Corre el scraper en un thread separado, emitiendo progreso."""
+    from scraper import actualizar_todo
+    import sys
+
+    # Redirigir prints al emisor SSE
+    class EmisorStream:
+        def write(self, texto):
+            texto = texto.rstrip("\n")
+            if texto:
+                estado.emitir(texto)
+        def flush(self):
+            pass
+
+    old_stdout = sys.stdout
+    sys.stdout = EmisorStream()
+
+    try:
+        estado.emitir("▶️ Iniciando actualización...")
+        actualizar_todo(descubrir=True, verificar_alertas_al_final=True)
+        estado.emitir("✅ ¡Actualización completa!")
+    except Exception as e:
+        estado.emitir(f"❌ Error: {e}")
+    finally:
+        sys.stdout = old_stdout
+        estado.corriendo = False
+        estado.emitir("__FIN__")
+
+
+# ============================================================
+# HELPERS
+# ============================================================
 def _agrupar(resultados_raw):
     productos_agrupados = {}
     for r in resultados_raw:
@@ -87,6 +163,9 @@ def inject_globals():
     }
 
 
+# ============================================================
+# RUTAS PRINCIPALES
+# ============================================================
 @app.route("/")
 def index():
     categoria = request.args.get("categoria", "").strip() or None
@@ -116,6 +195,71 @@ def buscar():
 
 
 # ============================================================
+# ACTUALIZAR (SCRAPER MANUAL) + SSE
+# ============================================================
+@app.route("/api/actualizar", methods=["POST"])
+def api_actualizar():
+    """Dispara el scraper en background. No bloquea."""
+    if estado.corriendo:
+        return jsonify({
+            "ok": False,
+            "mensaje": "Ya hay una actualización en curso"
+        }), 409
+
+    estado.corriendo = True
+    estado.progreso = []
+
+    thread = threading.Thread(target=ejecutar_scraper_background, daemon=True)
+    thread.start()
+
+    return jsonify({"ok": True, "mensaje": "Actualización iniciada"})
+
+
+@app.route("/api/actualizar/estado")
+def api_actualizar_estado():
+    """Devuelve si está corriendo y el progreso actual."""
+    return jsonify({
+        "corriendo": estado.corriendo,
+        "progreso": estado.progreso[-50:],
+    })
+
+
+@app.route("/api/actualizar/stream")
+def api_actualizar_stream():
+    """
+    Server-Sent Events: stream en vivo del progreso.
+    El navegador se conecta una vez y recibe actualizaciones.
+    """
+    def event_stream():
+        # Enviar historial actual primero
+        with estado.lock:
+            for msg in estado.progreso[-50:]:
+                yield f"data: {json.dumps({'linea': msg})}\n\n"
+
+        q = estado.suscribir()
+        try:
+            # Heartbeat cada 15 seg para no cerrar la conexión
+            import time
+            while True:
+                try:
+                    msg = q.get(timeout=15)
+                    if msg == "__FIN__":
+                        yield f"data: {json.dumps({'fin': True})}\n\n"
+                        break
+                    yield f"data: {json.dumps({'linea': msg})}\n\n"
+                except queue.Empty:
+                    yield f": heartbeat\n\n"
+        finally:
+            estado.desuscribir(q)
+
+    return Response(event_stream(), mimetype="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "X-Accel-Buffering": "no",
+                    })
+
+
+# ============================================================
 # HISTORIAL + PREDICCIÓN
 # ============================================================
 @app.route("/historial/<int:producto_id>")
@@ -123,7 +267,6 @@ def historial(producto_id):
     producto = get_producto_por_id(producto_id)
     if not producto:
         return redirect(url_for("index"))
-
     historico = get_historial_precio_producto(producto_id, dias=30)
     prediccion = predecir_precio(producto_id)
     return render_template(
@@ -295,7 +438,11 @@ def api_prediccion(producto_id):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+    return jsonify({
+        "status": "ok",
+        "time": datetime.now().isoformat(),
+        "scraper_corriendo": estado.corriendo,
+    })
 
 
 # ============================================================
@@ -304,4 +451,4 @@ def health():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5300))
     debug = os.getenv("FLASK_ENV", "development") == "development"
-    app.run(debug=debug, host="0.0.0.0", port=port)
+    app.run(debug=debug, host="0.0.0.0", port=port, threaded=True)
