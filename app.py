@@ -4,6 +4,7 @@ Servidor web Flask con todas las features.
 """
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from datetime import datetime
+import os
 
 from database import (
     init_db, buscar_productos, get_sugerencias,
@@ -21,6 +22,16 @@ from database import (
 from prediccion import predecir_precio, get_mejores_ofertas
 
 app = Flask(__name__)
+
+
+# ============================================================
+# INICIALIZAR DB AL IMPORTAR (para gunicorn en producción)
+# ============================================================
+try:
+    init_db()
+    print("✅ DB inicializada al arrancar app.py")
+except Exception as e:
+    print(f"⚠️ Error inicializando DB: {e}")
 
 
 def _agrupar(resultados_raw):
@@ -149,6 +160,17 @@ def api_lista_agregar():
     return jsonify({"ok": True, "total": len(get_favoritos())})
 
 
+@app.route("/api/lista/agregar-por-nombre", methods=["POST"])
+def api_lista_agregar_por_nombre():
+    data = request.get_json() or {}
+    nombre = data.get("nombre", "").strip()
+    producto = get_producto_por_nombre(nombre)
+    if not producto:
+        return jsonify({"error": "Producto no encontrado"}), 404
+    agregar_favorito(producto["id"])
+    return jsonify({"ok": True})
+
+
 @app.route("/api/lista/quitar", methods=["POST"])
 def api_lista_quitar():
     data = request.get_json() or {}
@@ -193,6 +215,18 @@ def api_alerta_crear():
     return jsonify({"ok": True})
 
 
+@app.route("/api/alertas/crear-por-nombre", methods=["POST"])
+def api_alerta_crear_por_nombre():
+    data = request.get_json() or {}
+    nombre = data.get("nombre", "").strip()
+    umbral = float(data.get("umbral_pct", 10))
+    producto = get_producto_por_nombre(nombre)
+    if not producto:
+        return jsonify({"error": "Producto no encontrado"}), 404
+    crear_alerta(producto["id"], umbral)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/alertas/quitar", methods=["POST"])
 def api_alerta_quitar():
     data = request.get_json() or {}
@@ -227,7 +261,6 @@ def canasta_detalle(canasta_id):
     if not canasta:
         return redirect(url_for("canastas"))
 
-    # Agregar precios de cada item
     for item in canasta["items"]:
         historico = get_historial(producto_id=item["producto_id"], dias=1)
         precios = {}
@@ -245,7 +278,7 @@ def canasta_detalle(canasta_id):
 
 
 # ============================================================
-# API
+# API GENERAL
 # ============================================================
 @app.route("/api/buscar")
 def api_buscar():
@@ -265,9 +298,10 @@ def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
 
+# ============================================================
+# ARRANQUE LOCAL
+# ============================================================
 if __name__ == "__main__":
-    import os
-    init_db()
     port = int(os.getenv("PORT", 5300))
     debug = os.getenv("FLASK_ENV", "development") == "development"
     app.run(debug=debug, host="0.0.0.0", port=port)

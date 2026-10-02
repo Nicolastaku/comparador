@@ -1,11 +1,15 @@
 """
 database.py
 Base de datos SQLite + auto-descubrimiento + alertas + favoritos.
+Soporta volumen persistente con variable de entorno DB_PATH.
 """
+import os
 import sqlite3
 from datetime import datetime, timedelta
 
-DB = "supermercados.db"
+# Ruta de la DB: usa DB_PATH si está definido (para volúmenes),
+# si no, usa la carpeta actual
+DB = os.getenv("DB_PATH", "supermercados.db")
 
 
 def get_conn():
@@ -58,7 +62,7 @@ def init_db():
         )
     """)
 
-    # Favoritos (para lista de mercado)
+    # Favoritos
     c.execute("""
         CREATE TABLE IF NOT EXISTS favoritos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +74,7 @@ def init_db():
         )
     """)
 
-    # Alertas configuradas por el usuario
+    # Alertas
     c.execute("""
         CREATE TABLE IF NOT EXISTS alertas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +87,6 @@ def init_db():
         )
     """)
 
-    # Historial de alertas disparadas
     c.execute("""
         CREATE TABLE IF NOT EXISTS alertas_disparadas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +100,7 @@ def init_db():
         )
     """)
 
-    # Canastas (listas predefinidas)
+    # Canastas
     c.execute("""
         CREATE TABLE IF NOT EXISTS canastas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,9 +129,7 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos(categoria)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_producto ON alertas(producto_id)")
 
-    # ============================================================
-    # CANASTA BÁSICA
-    # ============================================================
+    # Canasta básica
     productos_base = [
         # LÁCTEOS
         ("Leche Alquería 1L",              "Lácteos", "leche alqueria"),
@@ -208,7 +209,6 @@ def init_db():
             VALUES (?, ?, ?, 1, 0)
         """, (nombre, cat, termino))
 
-    # Canastas predefinidas
     canastas_base = [
         ("Semanal básica", "Lo esencial para una semana", "🛒"),
         ("Familiar", "Canasta para familia de 4", "👨‍👩‍👧‍👦"),
@@ -223,7 +223,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✅ Base de datos inicializada")
+    print(f"✅ Base de datos inicializada en: {DB}")
 
 
 # ============================================================
@@ -428,7 +428,7 @@ def log(supermercado, exito, num, mensaje=""):
 
 
 # ============================================================
-# HISTÓRICO Y PREDICCIÓN
+# HISTÓRICO Y PRODUCTOS
 # ============================================================
 def get_historial(producto_nombre=None, producto_id=None, supermercado=None, dias=30):
     conn = get_conn()
@@ -525,10 +525,6 @@ def limpiar_favoritos():
 
 
 def calcular_lista_optima():
-    """
-    Para los productos en favoritos, calcula qué súper es más barato
-    para TODA la lista. Retorna análisis por súper y por producto.
-    """
     favoritos = get_favoritos()
     if not favoritos:
         return None
@@ -536,7 +532,6 @@ def calcular_lista_optima():
     conn = get_conn()
     c = conn.cursor()
 
-    # Para cada favorito, traer el último precio por súper
     detalle = []
     for fav in favoritos:
         c.execute("""
@@ -555,7 +550,6 @@ def calcular_lista_optima():
                 "mejor": precios[0],
             })
 
-    # Totales por supermercado (solo productos disponibles)
     totales = {}
     for item in detalle:
         for p in item["precios"]:
@@ -565,14 +559,12 @@ def calcular_lista_optima():
             totales[s]["total"] += p["precio"] * item["cantidad"]
             totales[s]["productos"] += 1
 
-    # Productos que no están en cada súper
     total_favoritos = len(favoritos)
     for s in totales:
         totales[s]["faltantes"] = total_favoritos - totales[s]["productos"]
 
     conn.close()
 
-    # Ordenar súpers por total (menor a mayor)
     ranking = sorted(
         [{"supermercado": s, **v} for s, v in totales.items()],
         key=lambda x: (x["faltantes"], x["total"])
@@ -701,16 +693,14 @@ def get_canasta_detalle(canasta_id):
 
 
 # ============================================================
-# ESTADÍSTICAS / TENDENCIAS
+# ESTADÍSTICAS
 # ============================================================
 def get_estadisticas_globales():
-    """Estadísticas para la página de tendencias."""
     conn = get_conn()
     c = conn.cursor()
 
     stats = {}
 
-    # Totales
     c.execute("SELECT COUNT(*) FROM productos WHERE activo = 1")
     stats["total_productos"] = c.fetchone()[0]
 
@@ -720,7 +710,6 @@ def get_estadisticas_globales():
     c.execute("SELECT COUNT(*) FROM precios")
     stats["total_registros"] = c.fetchone()[0]
 
-    # Productos que MÁS bajaron en los últimos 7 días
     c.execute("""
         SELECT p.nombre, pr.supermercado,
                MAX(CASE WHEN pr.fecha = date('now', '-7 days') THEN pr.precio END) AS hace7,
@@ -735,7 +724,6 @@ def get_estadisticas_globales():
     """)
     stats["mas_bajaron"] = [dict(r) for r in c.fetchall()]
 
-    # Productos que MÁS subieron
     c.execute("""
         SELECT p.nombre, pr.supermercado,
                MAX(CASE WHEN pr.fecha = date('now', '-7 days') THEN pr.precio END) AS hace7,
@@ -750,7 +738,6 @@ def get_estadisticas_globales():
     """)
     stats["mas_subieron"] = [dict(r) for r in c.fetchall()]
 
-    # Supermercado más barato en promedio
     c.execute("""
         SELECT supermercado, AVG(precio) AS promedio, COUNT(*) AS registros
         FROM precios
@@ -761,7 +748,6 @@ def get_estadisticas_globales():
     """)
     stats["ranking_supers"] = [dict(r) for r in c.fetchall()]
 
-    # Conteo por categoría
     c.execute("""
         SELECT categoria, COUNT(*) AS total
         FROM productos
@@ -776,10 +762,6 @@ def get_estadisticas_globales():
 
 
 def get_historial_precio_producto(producto_id, dias=30):
-    """
-    Retorna el histórico por día y por supermercado.
-    Formato: {fechas: [...], series: {super: [...]}}
-    """
     conn = get_conn()
     c = conn.cursor()
     c.execute("""
