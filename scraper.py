@@ -1,6 +1,6 @@
 """
 scraper.py
-Scraper con Playwright + auto-descubrimiento de productos.
+Scraper con Playwright + auto-descubrimiento + verificación de alertas.
 """
 import re
 import time
@@ -12,19 +12,15 @@ from database import (
 )
 
 DELAY = 1.5
-MAX_DESCUBIERTOS_POR_BUSQUEDA = 8  # tope por término de búsqueda
+MAX_DESCUBIERTOS_POR_BUSQUEDA = 8
 
 
-# ============================================================
-#  VTEX + auto-descubrimiento
-# ============================================================
 def buscar_vtex_playwright(page, base_url, termino, super_nombre,
                             descubrir=True, nombres_existentes=None):
     api_url = (
         f"{base_url}/api/catalog_system/pub/products/search"
         f"?ft={termino}&_from=0&_to=9"
     )
-
     try:
         if not getattr(page, "_visited", False):
             try:
@@ -34,7 +30,6 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
             page._visited = True
 
         response = page.request.get(api_url, timeout=15000)
-
         if response.status not in (200, 206):
             print(f"    ⚠️  [{super_nombre}] HTTP {response.status}")
             return None
@@ -43,7 +38,6 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
         if not isinstance(data, list) or not data:
             return None
 
-        # ====== AUTO-DESCUBRIMIENTO ======
         if descubrir and nombres_existentes is not None:
             agregados = 0
             for prod in data:
@@ -52,14 +46,12 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
                 nombre_prod = (prod.get("productName") or "").strip()
                 if not nombre_prod or nombre_prod in nombres_existentes:
                     continue
-
                 categoria = "General"
                 cats = prod.get("categories") or []
                 if cats:
                     partes = cats[0].strip("/").split("/")
                     if partes and partes[0]:
                         categoria = partes[0]
-
                 resultado = agregar_producto_si_no_existe(
                     nombre_prod, categoria, nombre_prod.lower()
                 )
@@ -67,7 +59,6 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
                     nombres_existentes.add(nombre_prod)
                     agregados += 1
 
-        # ====== PRECIO ======
         for prod in data:
             for item in prod.get("items", []):
                 for seller in item.get("sellers", []):
@@ -82,7 +73,6 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
                             "nombre_match": prod.get("productName", ""),
                         }
         return None
-
     except PWTimeout:
         print(f"    ⏱️  [{super_nombre}] Timeout")
         return None
@@ -91,15 +81,11 @@ def buscar_vtex_playwright(page, base_url, termino, super_nombre,
         return None
 
 
-# ============================================================
-#  D1
-# ============================================================
 def buscar_d1_playwright(page, termino):
     urls_a_probar = [
         f"https://domicilios.d1.com.co/buscar?q={termino}",
         f"https://www.d1.com.co/buscar?q={termino}",
     ]
-
     for url in urls_a_probar:
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -110,7 +96,6 @@ def buscar_d1_playwright(page, termino):
                 )
             except PWTimeout:
                 continue
-
             elementos = page.query_selector_all("[class*='price'], [class*='Price']")
             for el in elementos:
                 try:
@@ -128,21 +113,20 @@ def buscar_d1_playwright(page, termino):
                             "nombre_match": termino,
                         }
             return None
-
         except PWTimeout:
             print(f"    ⏱️  [D1] Timeout")
             continue
         except Exception as e:
             print(f"    ❌ [D1] {type(e).__name__}: {str(e)[:70]}")
             continue
-
     return None
 
 
 # ============================================================
-#  Supermercados
+# MÁS SUPERMERCADOS (feature 11)
 # ============================================================
 SUPERMERCADOS = {
+    # VTEX (Colombia)
     "Olímpica":  {"tipo": "vtex", "base": "https://www.olimpica.com"},
     "Éxito":     {"tipo": "vtex", "base": "https://www.exito.com"},
     "Carulla":   {"tipo": "vtex", "base": "https://www.carulla.com"},
@@ -151,17 +135,15 @@ SUPERMERCADOS = {
     "Alkosto":   {"tipo": "vtex", "base": "https://www.alkosto.com"},
     "Makro":     {"tipo": "vtex", "base": "https://www.makro.co"},
     "Surtimax":  {"tipo": "vtex", "base": "https://www.surtimax.com.co"},
+    "Colsubsidio": {"tipo": "vtex", "base": "https://www.colsubsidio.com"},
+    "Cencosud":  {"tipo": "vtex", "base": "https://www.cencosud.com.co"},
     "D1":        {"tipo": "d1"},
 }
 
 
-# ============================================================
-#  Principal
-# ============================================================
-def actualizar_todo(descubrir=True):
+def actualizar_todo(descubrir=True, verificar_alertas_al_final=True):
     init_db()
     productos = get_productos_activos()
-
     nombres_existentes = get_todos_nombres_productos() if descubrir else set()
     nombres_antes = len(nombres_existentes)
 
@@ -183,7 +165,6 @@ def actualizar_todo(descubrir=True):
                 "--disable-dev-shm-usage",
             ],
         )
-
         context = browser.new_context(
             locale="es-CO",
             timezone_id="America/Bogota",
@@ -194,7 +175,6 @@ def actualizar_todo(descubrir=True):
                 "Chrome/120.0.0.0 Safari/537.36"
             ),
         )
-
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
         """)
@@ -203,7 +183,6 @@ def actualizar_todo(descubrir=True):
             print(f"\n🏪 {super_nombre}")
             actualizados = 0
             errores = 0
-
             page = context.new_page()
 
             for pid, nombre, termino in productos:
@@ -220,35 +199,24 @@ def actualizar_todo(descubrir=True):
                         res = None
 
                     if res:
-                        guardar_precio(
-                            pid, super_nombre,
-                            res["precio"],
-                            res.get("disponible", 1),
-                            res.get("url"),
-                        )
+                        guardar_precio(pid, super_nombre, res["precio"],
+                                        res.get("disponible", 1), res.get("url"))
                         actualizados += 1
                         print(f"  ✅ {nombre}: ${res['precio']:,.0f}")
                     else:
                         print(f"  ⚠️  {nombre}: sin datos")
-
                     time.sleep(DELAY)
-
                 except Exception as e:
                     errores += 1
                     print(f"  ❌ {nombre}: {str(e)[:70]}")
 
             page.close()
-            exito = errores < len(productos) / 2
-            log(super_nombre, exito, actualizados,
+            log(super_nombre, errores < len(productos) / 2, actualizados,
                 f"{actualizados} ok, {errores} err")
-            resumen[super_nombre] = {
-                "actualizados": actualizados,
-                "total": len(productos),
-            }
+            resumen[super_nombre] = {"actualizados": actualizados, "total": len(productos)}
 
         browser.close()
 
-    # Resumen
     print(f"\n{'='*60}")
     print("📊 RESUMEN FINAL")
     print(f"{'='*60}")
@@ -262,6 +230,18 @@ def actualizar_todo(descubrir=True):
     print(f"\n  🔍 Productos descubiertos esta corrida: {nuevos}")
     print(f"  📚 Total productos en catálogo: {len(nombres_despues)}")
     print(f"{'='*60}\n")
+
+    # Verificar alertas al final
+    if verificar_alertas_al_final:
+        print(f"\n{'='*60}")
+        print("🔔 VERIFICANDO ALERTAS")
+        print(f"{'='*60}")
+        try:
+            from alertas import verificar_alertas
+            disparadas = verificar_alertas(enviar=True)
+            print(f"  ✅ {len(disparadas)} alertas disparadas")
+        except Exception as e:
+            print(f"  ❌ Error verificando alertas: {e}")
 
 
 if __name__ == "__main__":

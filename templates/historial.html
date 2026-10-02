@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ producto.nombre }} - Historial{% endblock %}
+
+{% block content %}
+<a href="/" class="volver">← Volver</a>
+
+<div class="historial-header">
+    <div class="card-cat">{{ producto.categoria }}</div>
+    <h2>{{ producto.nombre }}</h2>
+</div>
+
+{% if prediccion.tendencia != "sin datos" %}
+<div class="prediccion-box prediccion-{{ prediccion.tendencia }}">
+    <div class="pred-icono">
+        {% if prediccion.tendencia == "bajando" %}📉
+        {% elif prediccion.tendencia == "subiendo" %}📈
+        {% else %}➡️{% endif %}
+    </div>
+    <div class="pred-info">
+        <strong>Predicción a {{ prediccion.dias_futuro }} días:</strong>
+        {% if prediccion.tendencia == "bajando" %}
+            Podría bajar a <b>${{ "{:,.0f}".format(prediccion.precio_predicho) }}</b>
+            ({{ prediccion.cambio_pct }}%)
+        {% elif prediccion.tendencia == "subiendo" %}
+            Podría subir a <b>${{ "{:,.0f}".format(prediccion.precio_predicho) }}</b>
+            (+{{ prediccion.cambio_pct }}%) — compra pronto
+        {% else %}
+            Precio estable (~${{ "{:,.0f}".format(prediccion.precio_predicho) }})
+        {% endif %}
+        <div class="pred-confianza">Confianza: {{ prediccion.confianza }}% ({{ prediccion.dias_datos }} días de datos)</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="chart-container">
+    <canvas id="chartHistorial"></canvas>
+</div>
+
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const historico = {{ historico|tojson }};
+const colores = {
+    "Olímpica": "#e63946",
+    "Éxito": "#2a9d8f",
+    "Carulla": "#f4a261",
+    "Jumbo": "#264653",
+    "Metro": "#e76f51",
+    "Alkosto": "#457b9d",
+    "Makro": "#1d3557",
+    "Surtimax": "#8ecae6",
+    "D1": "#fb8500",
+    "Colsubsidio": "#9d4edd",
+    "Cencosud": "#06a77d"
+};
+
+const datasets = [];
+for (const [super_nombre, precios] of Object.entries(historico.series)) {
+    datasets.push({
+        label: super_nombre,
+        data: precios,
+        borderColor: colores[super_nombre] || "#667eea",
+        backgroundColor: (colores[super_nombre] || "#667eea") + "20",
+        tension: 0.3,
+        spanGaps: true,
+    });
+}
+
+const ctx = document.getElementById("chartHistorial");
+new Chart(ctx, {
+    type: "line",
+    data: {
+        labels: historico.fechas,
+        datasets: datasets,
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: "Evolución de precios (últimos 30 días)",
+                font: { size: 15 }
+            },
+            legend: { position: "bottom" }
+        },
+        scales: {
+            y: {
+                ticks: {
+                    callback: v => "$" + v.toLocaleString("es-CO")
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

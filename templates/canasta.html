@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Canastas - Comparador{% endblock %}
+
+{% block content %}
+<h2 class="titulo-comparacion">🛍️ Canastas predefinidas</h2>
+
+{% if not canasta %}
+<p class="hint">Selecciona una canasta para ver su comparación completa</p>
+<div class="grid-canastas">
+    {% for c in canastas %}
+    <a href="/canastas/{{ c.id }}" class="card-canasta">
+        <div class="canasta-icono">{{ c.icono }}</div>
+        <h3>{{ c.nombre }}</h3>
+        <p class="canasta-desc">{{ c.descripcion }}</p>
+        <p class="canasta-total">{{ c.total_items }} productos</p>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<a href="/canastas" class="volver">← Ver todas las canastas</a>
+<h2 class="titulo-comparacion">{{ canasta.icono }} {{ canasta.nombre }}</h2>
+<p class="hint">{{ canasta.descripcion }}</p>
+
+<div class="detalle-lista">
+    {% for item in canasta["items"] %}
+    <div class="card-producto">
+        <div class="card-header">
+            <h3 class="card-nombre">{{ item.nombre }}</h3>
+        </div>
+        <div class="card-precios">
+            {% for p in item.precios %}
+            <div class="precio-row {% if loop.first %}precio-ganador{% endif %}">
+                <div class="precio-super">{% if loop.first %}🏆 {% endif %}{{ p.supermercado }}</div>
+                <div class="precio-valor">${{ "{:,.0f}".format(p.precio) }}</div>
+            </div>
+            {% else %}
+            <div class="precio-row"><div class="precio-super">Sin datos</div></div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Tendencias - Comparador{% endblock %}
+
+{% block content %}
+<h2 class="titulo-comparacion">📊 Tendencias y estadísticas</h2>
+
+<div class="stats-bar">
+    <div class="stat">
+        <span class="stat-num">{{ stats.total_productos }}</span>
+        <span class="stat-lbl">productos</span>
+    </div>
+    <div class="stat">
+        <span class="stat-num">{{ stats.total_supermercados }}</span>
+        <span class="stat-lbl">supermercados</span>
+    </div>
+    <div class="stat">
+        <span class="stat-num">{{ stats.total_registros }}</span>
+        <span class="stat-lbl">precios históricos</span>
+    </div>
+</div>
+
+{% if stats.ranking_supers %}
+<h3 class="subtitulo">🏆 Ranking de supermercados (más baratos)</h3>
+<table class="tabla-comparacion">
+    <thead>
+        <tr><th>#</th><th>Supermercado</th><th>Precio promedio</th><th>Productos</th></tr>
+    </thead>
+    <tbody>
+        {% for r in stats.ranking_supers %}
+        <tr class="{% if loop.first %}ganador{% endif %}">
+            <td>{{ loop.index }}</td>
+            <td>{% if loop.first %}🏆 {% endif %}{{ r.supermercado }}</td>
+            <td class="precio">${{ "{:,.0f}".format(r.promedio) }}</td>
+            <td>{{ r.registros }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<div class="dos-columnas">
+    <div>
+        <h3 class="subtitulo">📉 Más bajaron (últimos 7 días)</h3>
+        {% if stats.mas_bajaron %}
+        <div class="lista-tendencias">
+            {% for p in stats.mas_bajaron %}
+            <div class="tendencia-item bajando">
+                <div class="tend-nombre">{{ p.nombre }}</div>
+                <div class="tend-super">{{ p.supermercado }}</div>
+                <div class="tend-precio">
+                    ${{ "{:,.0f}".format(p.hace7) }} → <b>${{ "{:,.0f}".format(p.ultimo) }}</b>
+                    <span class="tend-pct">-{{ "{:.1f}".format((p.hace7 - p.ultimo) / p.hace7 * 100) }}%</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="hint">Sin datos suficientes todavía</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <h3 class="subtitulo">📈 Más subieron (últimos 7 días)</h3>
+        {% if stats.mas_subieron %}
+        <div class="lista-tendencias">
+            {% for p in stats.mas_subieron %}
+            <div class="tendencia-item subiendo">
+                <div class="tend-nombre">{{ p.nombre }}</div>
+                <div class="tend-super">{{ p.supermercado }}</div>
+                <div class="tend-precio">
+                    ${{ "{:,.0f}".format(p.hace7) }} → <b>${{ "{:,.0f}".format(p.ultimo) }}</b>
+                    <span class="tend-pct">+{{ "{:.1f}".format((p.ultimo - p.hace7) / p.hace7 * 100) }}%</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="hint">Sin datos suficientes todavía</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if ofertas %}
+<h3 class="subtitulo">⏰ Compra pronto (predicción: van a subir)</h3>
+<div class="lista-tendencias">
+    {% for o in ofertas %}
+    <div class="tendencia-item subiendo">
+        <div class="tend-nombre">{{ o.producto }}</div>
+        <div class="tend-precio">
+            Actual: ${{ "{:,.0f}".format(o.precio_actual) }} →
+            Predicho: ${{ "{:,.0f}".format(o.precio_predicho) }}
+            <span class="tend-pct">+{{ "{:.1f}".format(o.cambio_pct) }}%</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

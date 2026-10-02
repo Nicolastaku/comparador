@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Alertas - Comparador{% endblock %}
+
+{% block content %}
+<h2 class="titulo-comparacion">🔔 Mis alertas</h2>
+
+{% if alertas %}
+<div class="grid-alertas">
+    {% for a in alertas %}
+    <div class="card-alerta">
+        <h3>{{ a.nombre }}</h3>
+        <p class="alerta-info">
+            Bajada mayor a <b>{{ a.umbral_pct }}%</b>
+        </p>
+        <button class="btn-peligro-mini"
+                onclick="quitarAlerta({{ a.producto_id }})">Quitar</button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="hint">No tienes alertas configuradas. Crea una desde las tarjetas de productos 🔔</p>
+{% endif %}
+
+{% if disparadas %}
+<h3 class="subtitulo">📬 Historial de alertas disparadas</h3>
+<div class="lista-tendencias">
+    {% for d in disparadas %}
+    <div class="tendencia-item bajando">
+        <div class="tend-nombre">{{ d.producto }}</div>
+        <div class="tend-super">{{ d.supermercado }} · {{ d.disparada_at[:16] }}</div>
+        <div class="tend-precio">
+            ${{ "{:,.0f}".format(d.precio_antes) }} → <b>${{ "{:,.0f}".format(d.precio_ahora) }}</b>
+            <span class="tend-pct">-{{ "{:.1f}".format(d.ahorro_pct) }}%</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function quitarAlerta(pid) {
+    if (!confirm("¿Quitar esta alerta?")) return;
+    await fetch("/api/alertas/quitar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producto_id: pid })
+    });
+    location.reload();
+}
+</script>
+{% endblock %}

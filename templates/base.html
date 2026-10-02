@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Comparador de Precios - Fontibón{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">🛒 Comparador</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Inicio</a>
+                <a href="/lista" class="nav-link">Mi lista</a>
+                <a href="/tendencias" class="nav-link">Tendencias</a>
+                <a href="/canastas" class="nav-link">Canastas</a>
+                <a href="/alertas" class="nav-link">Alertas</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container container-wide">
+        <header>
+            <h1>{% block h1 %}🛒 Comparador de Precios{% endblock %}</h1>
+            {% if ultima %}
+                <p class="ultima">📅 Actualizado: {{ ultima[:16].replace('T', ' ') }}</p>
+            {% endif %}
+        </header>
+
+        {% block content %}{% endblock %}
+
+        <footer>
+            <p>Los precios se actualizan automáticamente cada día a las 3:00 AM</p>
+        </footer>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

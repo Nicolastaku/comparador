@@ -27,4 +27,3 @@ Rastrea automáticamente productos en Olímpica, Éxito, Carulla, Jumbo, Metro, 
 
 ```bash
 git clone https://github.com/TU_USUARIO/comparador-precios-fontibon.git
-cd comparador-precios-fontibon

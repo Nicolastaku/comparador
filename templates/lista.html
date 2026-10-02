@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Mi lista de mercado{% endblock %}
+
+{% block content %}
+<h2 class="titulo-comparacion">🛒 Mi lista de mercado</h2>
+
+{% if not analisis %}
+<div class="vacio">
+    <p>Tu lista está vacía</p>
+    <p class="hint">Agrega productos desde la <a href="/">página principal</a> con el botón ➕</p>
+</div>
+{% else %}
+
+{% if analisis.ranking %}
+<div class="optimo-box">
+    <h3>🏆 Compra todo en: {{ analisis.ranking[0].supermercado }}</h3>
+    <p class="optimo-total">
+        Total: <b>${{ "{:,.0f}".format(analisis.ranking[0].total) }}</b>
+        ({{ analisis.ranking[0].productos }}/{{ analisis.total_productos }} productos)
+    </p>
+    {% if analisis.ranking[0].faltantes > 0 %}
+    <p class="optimo-warning">
+        ⚠️ Faltan {{ analisis.ranking[0].faltantes }} productos en este súper
+    </p>
+    {% endif %}
+</div>
+
+<h3 class="subtitulo">Comparación de totales</h3>
+<table class="tabla-comparacion">
+    <thead>
+        <tr><th>#</th><th>Supermercado</th><th>Total</th><th>Cobertura</th></tr>
+    </thead>
+    <tbody>
+        {% for r in analisis.ranking %}
+        <tr class="{% if loop.first %}ganador{% endif %}">
+            <td>{{ loop.index }}</td>
+            <td>{% if loop.first %}🏆 {% endif %}{{ r.supermercado }}</td>
+            <td class="precio">${{ "{:,.0f}".format(r.total) }}</td>
+            <td>{{ r.productos }}/{{ analisis.total_productos }}
+                {% if r.faltantes > 0 %}<span class="faltan">(-{{ r.faltantes }})</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<h3 class="subtitulo">Detalle de productos</h3>
+<div class="detalle-lista">
+    {% for item in analisis.detalle %}
+    <div class="card-producto">
+        <div class="card-header">
+            <h3 class="card-nombre">{{ item.producto }} × {{ item.cantidad }}</h3>
+        </div>
+        <div class="card-precios">
+            {% for p in item.precios %}
+            <div class="precio-row {% if loop.first %}precio-ganador{% endif %}">
+                <div class="precio-super">{% if loop.first %}🏆 {% endif %}{{ p.supermercado }}</div>
+                <div class="precio-valor">${{ "{:,.0f}".format(p.precio) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<button onclick="limpiarLista()" class="btn-peligro">🗑️ Limpiar lista</button>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function limpiarLista() {
+    if (!confirm("¿Borrar toda la lista?")) return;
+    await fetch("/api/lista/limpiar", { method: "POST" });
+    location.reload();
+}
+</script>
+{% endblock %}
