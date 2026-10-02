@@ -72,30 +72,35 @@ for (const [super_nombre, precios] of Object.entries(historico.series)) {
 }
 
 const ctx = document.getElementById("chartHistorial");
-new Chart(ctx, {
-    type: "line",
-    data: {
-        labels: historico.fechas,
-        datasets: datasets,
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            title: {
-                display: true,
-                text: "Evolución de precios (últimos 30 días)",
-                font: { size: 15 }
-            },
-            legend: { position: "bottom" }
+if (ctx && historico.fechas.length > 0) {
+    new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: historico.fechas,
+            datasets: datasets,
         },
-        scales: {
-            y: {
-                ticks: {
-                    callback: v => "$" + v.toLocaleString("es-CO")
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: "Evolución de precios (últimos 30 días)",
+                    font: { size: 15 }
+                },
+                legend: { position: "bottom" }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        callback: v => "$" + v.toLocaleString("es-CO")
+                    }
                 }
             }
         }
-    }
-});
+    });
+} else if (ctx) {
+    ctx.parentElement.innerHTML = '<p class="hint" style="text-align:center;padding:50px">📭 Todavía no hay datos históricos</p>';
+}
 </script>
 {% endblock %}
